@@ -3,8 +3,13 @@ import 'package:rive/rive.dart';
 
 import 'dart:async'; //3.1.
 
+//5.1. Importar Firebase Auth y la pantalla de productos
+import 'package:firebase_auth/firebase_auth.dart';
+
+import 'products_screen.dart';
+
 class LoginScreen extends StatefulWidget {
-  const new({super.key});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -37,6 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
   String? emailError;
   String? passError;
 
+  // 5.2. Variables para mostrar el CircularProgressIndicator mientras carga
+  bool _isLoading = false;
+
   // 4.3 Validadores
   bool isValidEmail(String email) {
     final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
@@ -52,7 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   //4.4. Acción del botón
-  void _onLogin() {
+  //5.3. Convertir _onLogin en asíncrono (Future<void> ... async)
+  Future<void> _onLogin() async {
     //Recortas espacios en blanco accidentales
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
@@ -74,10 +83,45 @@ class _LoginScreenState extends State<LoginScreen> {
     _isHandsUp?.change(false);
     _numLook?.value = 50.0;
 
-    //4.7. Activas triggers
-    if (emailTypedError == null && passTypedError == null) {
+    //4.9. Si algún campo tiene formato inválido, activar fallo y detener aquí
+    if (emailTypedError != null || passTypedError != null) {
+      _trigFail?.fire();
+      return;
+    }
+
+    //5.4. Activar el CircularProgressIndicator
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      //5.5. Autenticar usuario en Firebase (2 segundos para alcanzar a ver el loading)
+      await Future.delayed(const Duration(seconds: 2));
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: pass,
+      );
+
+      //5.6. Apagar loading, disparar éxito del osito y esperar a que termine
+      setState(() {
+        _isLoading = false;
+      });
       _trigSuccess?.fire();
-    } else {
+      await Future.delayed(const Duration(seconds: 2));
+
+      //5.7. Navegar a la pantalla de productos de Spring Boot
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProductsScreen()),
+      );
+    } catch (e) {
+      //5.8. Si Firebase rechaza el login, apagar loading y osito triste
+      //(sin texto de error en ningún campo, como pide la ADA 4)
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
       _trigFail?.fire();
     }
   }
@@ -175,7 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                   decoration: InputDecoration(
-                    //4.9. Mostrar error
+                    //4.9. Mostrar error | Si algún campo tiene formato inválido, activar fallo y detener aquí
                     errorText: emailError,
                     hintText: "Email",
                     prefixIcon: const Icon(Icons.email),
@@ -237,6 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 10),
+                //4.13. Botón de login
                 MaterialButton(
                   //Toma todo el ancho posible
                   minWidth: screenSize.width,
@@ -246,10 +291,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   onPressed: _onLogin,
-                  child: Text(
-                    "Login",
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+                  //5.9. Mostrar CircularProgressIndicator si está cargando
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Login",
+                          style: TextStyle(color: Colors.white, fontSize: 18),
+                        ),
                 ),
                 const SizedBox(height: 20),
                 SizedBox(
