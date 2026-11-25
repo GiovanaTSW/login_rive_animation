@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
+import 'theme/ct_theme.dart';
 
 Future<void> main() async {
   // Encender el puente nativo antes de usar Firebase
@@ -21,8 +22,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
-      theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.deepPurple)),
+      title: 'Click & Tap',
+      theme: CT.theme,
       home: const LoginScreen(),
     );
   }

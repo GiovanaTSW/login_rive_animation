@@ -6,7 +6,10 @@ import 'dart:async'; //3.1.
 //5.1. Importar Firebase Auth y la pantalla de productos
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../theme/ct_theme.dart';
+import '../widgets/forgot_password_dialog.dart';
 import 'products_screen.dart';
+import 'sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,26 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final emailCtrl = TextEditingController();
   final passCtrl = TextEditingController();
 
-  // 4.2. Errores para mostrar en la UI
-  String? emailError;
-  String? passError;
-
   // 5.2. Variables para mostrar el CircularProgressIndicator mientras carga
   bool _isLoading = false;
-
-  // 4.3 Validadores
-  bool isValidEmail(String email) {
-    final re = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-    return re.hasMatch(email);
-  }
-
-  bool isValidPassword(String pass) {
-    // mínimo 8, una mayúscula, una minúscula, un dígito y un especial
-    final re = RegExp(
-      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$',
-    );
-    return re.hasMatch(pass);
-  }
 
   //4.4. Acción del botón
   //5.3. Convertir _onLogin en asíncrono (Future<void> ... async)
@@ -65,16 +50,6 @@ class _LoginScreenState extends State<LoginScreen> {
     //Recortas espacios en blanco accidentales
     final email = emailCtrl.text.trim();
     final pass = passCtrl.text;
-
-    //Recalcular errores
-    final emailTypedError = isValidEmail(email) ? null : 'Invalid Email';
-    final passTypedError = isValidPassword(pass) ? null : 'Invalid Password';
-
-    //4.5. Para mostrar el cambio
-    setState(() {
-      emailError = emailTypedError;
-      passError = passTypedError;
-    });
 
     //4.6. Cerrar el teclado y oso neutro
     FocusScope.of(context).unfocus();
@@ -84,8 +59,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _numLook?.value = 50.0;
 
     //4.9. Si algún campo tiene formato inválido, activar fallo y detener aquí
-    if (emailTypedError != null || passTypedError != null) {
+    // OWASP: solo se valida que no estén vacíos (sin regex ni errores por campo)
+    if (email.isEmpty || pass.isEmpty) {
       _trigFail?.fire();
+      _showInvalid();
       return;
     }
 
@@ -123,7 +100,14 @@ class _LoginScreenState extends State<LoginScreen> {
         _isLoading = false;
       });
       _trigFail?.fire();
+      _showInvalid();
     }
+  }
+
+  void _showInvalid() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Credenciales inválidas')),
+    );
   }
   //Onchanged, UI/UX, FocusNode, Ciclo de vida de un widget( createState, iniState, build, setState, Deactivate, dispose)
 
@@ -161,11 +145,28 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Column(
               children: [
+                // Marca centrada arriba del oso
+                const SizedBox(height: 12),
+                const Text(
+                  'Click & Tap',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: CT.navy,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+                // Espacio extra para bajar al oso y que no se encime el texto
+                const SizedBox(height: 18),
                 SizedBox(
                   width: screenSize.width,
-                  height: 200,
+                  height: 220,
                   child: RiveAnimation.asset(
                     'assets/login-bear-animation.riv',
+                    // Oso completo, sin recortes, apoyado abajo
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter,
                     stateMachines: ['Login Machine'],
                     // 1.2. Vincular animación
                     onInit: (artboard) {
@@ -220,7 +221,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   decoration: InputDecoration(
                     //4.9. Mostrar error | Si algún campo tiene formato inválido, activar fallo y detener aquí
-                    errorText: emailError,
                     hintText: "Email",
                     prefixIcon: const Icon(Icons.email),
                     border: OutlineInputBorder(
@@ -250,7 +250,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: _isObscure,
                   decoration: InputDecoration(
                     //4.9. Mostrar error
-                    errorText: passError,
                     hintText: "Password",
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
@@ -274,10 +273,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 SizedBox(
                   width: screenSize.width,
-                  child: const Text(
-                    "Forgot password?",
-                    textAlign: TextAlign.right,
-                    style: TextStyle(decoration: TextDecoration.underline),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: () => showForgotPasswordDialog(context),
+                      child: const Text(
+                        "Forgot password?",
+                        style: TextStyle(decoration: TextDecoration.underline),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -286,7 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   //Toma todo el ancho posible
                   minWidth: screenSize.width,
                   height: 50,
-                  color: Colors.pinkAccent,
+                  color: CT.prussian,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -307,9 +311,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Text("Don't have an account?"),
                       TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SignUpScreen(),
+                          ),
+                        ),
                         child: Text(
-                          "Register",
+                          "Sign up",
                           style: TextStyle(
                             color: Colors.black,
                             fontWeight: FontWeight.bold,
